@@ -82,6 +82,14 @@ public class DefaultTrackableEventHandler : MonoBehaviour,
         }
 
         Debug.Log("Trackable " + mTrackableBehaviour.TrackableName + " found");
+
+		MarkerBehaviour markerBehaviour = GetComponent<MarkerBehaviour>();
+
+		if( markerBehaviour )
+		{
+			MonAgent.SetLastFoundMonID( markerBehaviour.Marker.MarkerID );
+			StateAgent.ChangeState( StateAgent.State.Playing );
+		}
     }
 
 
