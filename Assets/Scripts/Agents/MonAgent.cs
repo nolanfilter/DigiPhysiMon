@@ -28,7 +28,9 @@ public class MonAgent : MonoBehaviour {
 		NinjaStars = 1,
 		Invalid = 2,
 	}
-
+	
+	public GameObject monPrefab;
+	public GameObject shotPrefab;
 
 	private static int TypeTypeLength = Enum.GetNames( typeof( TypeType ) ).Length - 1;
 	private static int Attack1TypeLength = Enum.GetNames( typeof( Attack1Type ) ).Length - 1;
@@ -153,5 +155,21 @@ public class MonAgent : MonoBehaviour {
 		}
 
 		return newTypeType;
+	}
+
+	public static GameObject GetMonPrefab()
+	{
+		if( instance )
+			return instance.monPrefab;
+
+		return null;
+	}
+
+	public static GameObject GetShotPrefab()
+	{
+		if( instance )
+			return instance.shotPrefab;
+		
+		return null;
 	}
 }
