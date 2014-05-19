@@ -284,6 +284,26 @@ public class BattleAgent : MonoBehaviour {
 			StartCoroutine( "DoEndGame" );
 	}
 
+	public static void DamageDealt( int channel, bool isDefender )
+	{
+		if( instance )
+			instance.internalDamageDealt( channel, isDefender );
+	}
+
+	private void internalDamageDealt( int channel, bool isDefender )
+	{
+		if( isDefender )
+		{
+			if( attackingMonController )
+				attackingMonController.DestroyShotAt( channel );
+		}
+		else
+		{
+			if( defendingMonController )
+				defendingMonController.DestroyShotAt( channel );
+		}
+	}
+
 	private IEnumerator DoEndGame()
 	{
 		isEndingGame = true;
