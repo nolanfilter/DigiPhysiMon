@@ -45,7 +45,7 @@ public class MonController : MonoBehaviour {
 		{
 			case 0: numSegments = 1; shotSpeedPercent = 2f; break;
 			case 1: numSegments = 2; shotSpeedPercent = 1f; break;
-			case 2: numSegments = 3; shotSpeedPercent = 0.5f; break;
+			case 2: numSegments = 4; shotSpeedPercent = 0.5f; break;
 		}
 
 		currentChannelPositions.Clear();
@@ -60,9 +60,17 @@ public class MonController : MonoBehaviour {
 
 		for( int i = 0; i < numSegments; i++ )
 		{
-			currentChannelPositions.Add( ( BoardAgent.NumChannels / 2 + ( i - 1 ) * ( isDefender ? 1 : -1 ) ) );
+			if( numSegments == 4 && i > 1 )
+			{
+				currentChannelPositions.Add( ( BoardAgent.NumChannels / 2 + ( i - 3 ) * ( isDefender ? 1 : -1 ) ) );
+				segments.Add( Instantiate( MonAgent.GetMonPrefab(), BoardAgent.ChannelPositionToScreenPosition( currentChannelPositions[i], isDefender ) + Vector3.up * BoardAgent.ChannelWidth * ( isDefender ? 1f : -1f ), rotation ) as GameObject );
+			}
+			else
+			{
+				currentChannelPositions.Add( ( BoardAgent.NumChannels / 2 + ( i - 1 ) * ( isDefender ? 1 : -1 ) ) );
+				segments.Add( Instantiate( MonAgent.GetMonPrefab(), BoardAgent.ChannelPositionToScreenPosition( currentChannelPositions[i], isDefender ), rotation ) as GameObject );
+			}
 
-			segments.Add( Instantiate( MonAgent.GetMonPrefab(), BoardAgent.ChannelPositionToScreenPosition( currentChannelPositions[i], isDefender ), rotation ) as GameObject );
 			segments[i].transform.parent = transform;
 			segments[i].transform.localScale = Vector3.one * BoardAgent.ChannelWidth * 0.75f;
 		}
@@ -76,6 +84,8 @@ public class MonController : MonoBehaviour {
 		Destroy( segments[ segmentIndex ] );
 		segments.RemoveAt( segmentIndex );
 		currentChannelPositions.RemoveAt( segmentIndex );
+
+
 	}
 
 	private void DestroyShotsFired()
@@ -101,7 +111,10 @@ public class MonController : MonoBehaviour {
 	private void UpdateScreenPosition()
 	{
 		for( int i = 0; i < segments.Count; i++ )
-			segments[i].transform.position = BoardAgent.ChannelPositionToScreenPosition( currentChannelPositions[i], isDefender );
+		{
+			float newXPosition = BoardAgent.ChannelPositionToScreenPosition( currentChannelPositions[i], isDefender ).x;
+			segments[i].transform.position = new Vector3( newXPosition, segments[i].transform.position.y, 0f );
+		}
 	}
 
 	public void MoveLeft()
@@ -109,18 +122,15 @@ public class MonController : MonoBehaviour {
 		if( currentChannelPositions.Count == 0 )
 			return;
 
-		if( isDefender )
-		{
-			if( currentChannelPositions[0] > 0 )
-				for( int i = 0; i < currentChannelPositions.Count; i++ )
-					currentChannelPositions[i]--;
-		}
-		else
-		{
-			if( currentChannelPositions[ currentChannelPositions.Count - 1 ] > 0 )
-				for( int i = 0; i < currentChannelPositions.Count; i++ )
-					currentChannelPositions[i]--;
-		}
+		int lowestChannel = currentChannelPositions[0];
+
+		for( int i = 1; i < currentChannelPositions.Count; i++ )
+			if( currentChannelPositions[i] < lowestChannel )
+				lowestChannel = currentChannelPositions[i];
+
+		if( lowestChannel > 0 )
+			for( int i = 0; i < currentChannelPositions.Count; i++ )
+				currentChannelPositions[i]--;
 
 		UpdateScreenPosition();
 	}
@@ -130,18 +140,15 @@ public class MonController : MonoBehaviour {
 		if( currentChannelPositions.Count == 0 )
 			return;
 
-		if( isDefender )
-		{
-			if( currentChannelPositions[ currentChannelPositions.Count - 1 ] < BoardAgent.NumChannels - 1 )
-				for( int i = 0; i < currentChannelPositions.Count; i++ )
-					currentChannelPositions[i]++;
-		}
-		else
-		{
-			if( currentChannelPositions[0] < BoardAgent.NumChannels - 1 )
-				for( int i = 0; i < currentChannelPositions.Count; i++ )
-					currentChannelPositions[i]++;
-		}
+		int highestChannel = currentChannelPositions[0];
+		
+		for( int i = 1; i < currentChannelPositions.Count; i++ )
+			if( currentChannelPositions[i] > highestChannel )
+				highestChannel = currentChannelPositions[i];
+
+		if( highestChannel < BoardAgent.NumChannels - 1 )
+			for( int i = 0; i < currentChannelPositions.Count; i++ )
+				currentChannelPositions[i]++;
 		
 		UpdateScreenPosition();
 	}
@@ -155,7 +162,7 @@ public class MonController : MonoBehaviour {
 			int newShotChannel = currentChannelPositions[i];
 			shotChannels.Add( newShotChannel );
 
-			GameObject newShot = Instantiate( MonAgent.GetShotPrefab(), BoardAgent.ChannelPositionToScreenPosition( newShotChannel, isDefender ), rotation ) as GameObject;
+			GameObject newShot = Instantiate( MonAgent.GetShotPrefab(), segments[i].transform.position, rotation ) as GameObject;
 			newShot.transform.localScale = Vector3.one * BoardAgent.ChannelWidth * 0.25f;
 
 			shotsFired.Add( newShot );
@@ -169,14 +176,34 @@ public class MonController : MonoBehaviour {
 	{
 		for( int i = 0; i < damageChannels.Count; i++ )
 		{
-			for( int j = 0; j < currentChannelPositions.Count; j++ )
+			for( int j = currentChannelPositions.Count - 1; j >= 0; j-- )
 			{
 				if( damageChannels[i] == currentChannelPositions[j] )
+				{
 					DestroySegment( j );
+					BattleAgent.DamageDealt( damageChannels[i], isDefender );
+					break;
+				}
 			}
 		}
 
 		return ( segments.Count == 0 );
+	}
+
+	public void DestroyShotAt( int channel )
+	{
+		List<int> shotsToDestroy = new List<int>();
+
+		for( int i = 0; i < shotChannels.Count; i++ )
+		{
+			if( shotChannels[i] == channel )
+				shotsToDestroy.Add( i );
+		}
+
+		for( int i = shotsToDestroy.Count - 1; i >= 0; i-- )
+		{
+			DestroyShot( shotsToDestroy[i] );
+		}
 	}
 
 	private IEnumerator RunShotsFired()
